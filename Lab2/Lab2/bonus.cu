@@ -23,6 +23,7 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 
 	int count = 0;
 	for(int i = 0; i < iterations; i++){
+        printf("%d %i\n",id,i);
 		double x = curand_uniform(&states[id]);
 		double y = curand_uniform(&states[id]);
 
@@ -35,9 +36,7 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 		}
 	}
 
-	atomicAdd(res, count);
-
-   
+	atomicAdd(res, count);  
 
 }
 
@@ -85,7 +84,7 @@ int gpu_solution() {
     cudaMemset(cuda_res, 0, sizeof(int));
 
     
-    pi_kernel << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res);    
+    pi_kernel << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res, iterationsPerCudaThread);
 	cudaDeviceSynchronize();
 
     cudaMemcpy(res, cuda_res, sizeof(int), cudaMemcpyDeviceToHost);

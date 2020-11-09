@@ -2,7 +2,7 @@
 #include <random>
 #include <time.h>
 
-#define NUM_PARTICLES 100000
+#define NUM_PARTICLES 100000000
 #define NUM_ITERATIONS 100
 #define BLOCK_SIZE 16  //Number of threads
 
