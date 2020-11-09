@@ -89,6 +89,7 @@ int gpu_solution() {
     //init random
     curandState* dev_random;
     cudaMalloc((void**)&dev_random, total_amount_of_threads  * sizeof(curandState));
+	cudaMalloc(&cuda_res, sizeof(int));
 
     cudaMemset(cuda_res, 0, sizeof(int));
 
@@ -105,6 +106,7 @@ int gpu_solution() {
     printf("The result is %f\n", pi);
 
     cudaFree(cuda_res);
+	cudaFree(dev_random);
     free(res);
     return 0;
 }
