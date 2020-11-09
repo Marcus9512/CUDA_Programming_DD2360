@@ -13,6 +13,7 @@
 #define NUM_ITER 1000000000
 
 #define NUM_THREADS 256
+#define NUM_BLOCKS 16
 
 __global__ void pi_kernel(curandState* states, int *res, int iterations) {
     const int id = threadIdx.x + blockIdx.x * blockDim.x;
@@ -23,9 +24,11 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 
 	int count = 0;
 	for(int i = 0; i < iterations; i++){
-        printf("%d %i\n",id,i);
+        
 		double x = curand_uniform(&states[id]);
 		double y = curand_uniform(&states[id]);
+
+		printf("%d %d\n",x,y);
 
 		double z = sqrt((x * x) + (y * y));
 
@@ -71,15 +74,19 @@ int gpu_solution() {
 
     int* res = (int*)malloc(sizeof(int));
 
-    int iterationsPerCudaThread = NUM_ITER / NUM_THREADS;
+	
+	dim3 numberOfBlocks(NUM_BLOCKS);
+    dim3 numberOfThreads(NUM_THREADS);
+
+	float total_amount_of_threads = NUM_BLOCKS * NUM_THREADS;
+
+    int iterationsPerCudaThread = NUM_ITER / total_amount_of_threads;
     int* cuda_res;
 
-    dim3 numberOfBlocks(1);
-    dim3 numberOfThreads(NUM_THREADS);
 
     //init random
     curandState* dev_random;
-    cudaMalloc((void**)&dev_random, 1 * NUM_THREADS * sizeof(curandState));
+    cudaMalloc((void**)&dev_random, total_amount_of_threads  * sizeof(curandState));
 
     cudaMemset(cuda_res, 0, sizeof(int));
 
