@@ -38,9 +38,6 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 			count ++;
 		}
 	}
-
-    printf("%d\n",res);
-
 	atomicAdd(res, count);  
 
 }
@@ -100,7 +97,6 @@ int gpu_solution() {
     cudaMemcpy(res, cuda_res, sizeof(int), cudaMemcpyDeviceToHost);
 
     // Estimate Pi and display the result
-    printf("%d",*res);
     double pi = ((double)*res / (double)NUM_ITER) * 4.0;
 
     printf("The result is %f\n", pi);
