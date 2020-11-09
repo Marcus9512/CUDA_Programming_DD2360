@@ -31,12 +31,14 @@ __device__ void updatePos(Particle* par, int index) {
 }
 
 //Kernal function
-__global__ void particleSim(Particle* par, int len) {
+__global__ void particleSim(Particle* par, int len, int iterations) {
 	const int id = threadIdx.x + blockIdx.x * blockDim.x;
 	if (id >= len) return;
 
-	updateVelocity(par, id);
-	updatePos(par, id);
+	for(int i = 0; i < iterations; i++){
+		updateVelocity(par, id);
+		updatePos(par, id);
+	}	
 }
 
 void particleCPU(Particle* par, int len) {
@@ -104,10 +106,9 @@ void runSimulation() {
 	//Transfer to gpu memory
 	cudaMemcpy(particles_parallel, particles, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyHostToDevice);
 
-	for (int i = 0; i < NUM_ITERATIONS; i++) {
-		//printf("%d\n", i);
-		particleSim << <numberOfBlocks, numberOfThreads >> > (particles_parallel, NUM_PARTICLES);
-	}
+	
+	particleSim << <numberOfBlocks, numberOfThreads >> > (particles_parallel, NUM_PARTICLES, NUM_ITERATIONS);
+	cudaDeviceSynchronize();
 	
 	cudaMemcpy(parallel_results, particles_parallel, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyDeviceToHost);
 

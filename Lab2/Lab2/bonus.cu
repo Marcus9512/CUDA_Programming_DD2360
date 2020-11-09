@@ -14,23 +14,30 @@
 
 #define NUM_THREADS 256
 
-__global__ void pi_kernel(curandState* states, int *res) {
+__global__ void pi_kernel(curandState* states, int *res, int iterations) {
     const int id = threadIdx.x + blockIdx.x * blockDim.x;
     //if (id >= iter) return;
 
     int seed = id; // different seed per thread
     curand_init(seed, id, 0, &states[id]);  // 	Initialize CURAND
 
-    double x = curand_uniform(&states[id]);
-    double y = curand_uniform(&states[id]);
+	int count = 0;
+	for(int i = 0; i < iterations; i++){
+		double x = curand_uniform(&states[id]);
+		double y = curand_uniform(&states[id]);
 
-    double z = sqrt((x * x) + (y * y));
+		double z = sqrt((x * x) + (y * y));
 
-    // Check if point is in unit circle
-    if (z <= 1.0)
-    {
-        atomicAdd(res, 1);
-    }
+		// Check if point is in unit circle
+		if (z <= 1.0)
+		{
+			count ++;
+		}
+	}
+
+	atomicAdd(res, count);
+
+   
 
 }
 
@@ -77,9 +84,10 @@ int gpu_solution() {
 
     cudaMemset(cuda_res, 0, sizeof(int));
 
-    for (int i = 0; i < iterationsPerCudaThread; i++) {
-        pi_kernel << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res);
-    }
+    
+    pi_kernel << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res);    
+	cudaDeviceSynchronize();
+
     cudaMemcpy(res, cuda_res, sizeof(int), cudaMemcpyDeviceToHost);
 
     // Estimate Pi and display the result
