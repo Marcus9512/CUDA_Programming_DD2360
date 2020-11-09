@@ -13,7 +13,7 @@
 #define NUM_ITER 1000000000
 
 #define NUM_THREADS 256
-#define NUM_BLOCKS 16
+#define NUM_BLOCKS 1
 
 __global__ void pi_kernel(curandState* states, int *res, int iterations) {
     const int id = threadIdx.x + blockIdx.x * blockDim.x;
@@ -28,7 +28,7 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 		double x = curand_uniform(&states[id]);
 		double y = curand_uniform(&states[id]);
 
-		printf("%d %d\n",x,y);
+		//printf("%f %f\n",x,y);
 
 		double z = sqrt((x * x) + (y * y));
 
@@ -38,6 +38,8 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 			count ++;
 		}
 	}
+
+    printf("%d\n",res);
 
 	atomicAdd(res, count);  
 
@@ -97,6 +99,7 @@ int gpu_solution() {
     cudaMemcpy(res, cuda_res, sizeof(int), cudaMemcpyDeviceToHost);
 
     // Estimate Pi and display the result
+    printf("%d",*res);
     double pi = ((double)*res / (double)NUM_ITER) * 4.0;
 
     printf("The result is %f\n", pi);
