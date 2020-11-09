@@ -80,6 +80,7 @@ int main() {
 	cudaMemcpy(y_parallel, y, sizeof(float) * ARRAY_SIZE, cudaMemcpyHostToDevice);
 
 	saxpy_kernal <<<numberOfBlocks, numberOfThreads >>> (x_parallel, y_parallel, a, ARRAY_SIZE);
+	cudaDeviceSynchronize();
 	cudaMemcpy(parallel_results, y_parallel, sizeof(float) * ARRAY_SIZE, cudaMemcpyDeviceToHost);
 
 	double time = (double)(clock() - start) / CLOCKS_PER_SEC;
