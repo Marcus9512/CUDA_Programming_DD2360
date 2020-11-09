@@ -25,9 +25,10 @@ void saxpy_on_cpu(float* x, float* y, const float a, int length) {
 
 // Checks if a1 and a2 have the same elements
 bool isSame(float* a1, float* a2, int length) {
+	float margin = 0.0001;
 	for (int i = 0; i < length; i++) {
 		//printf("a1 %f a2 %f \n", a1[i], a2[i]);
-		if (a1[i] != a2[i]) {			
+		if (fabs(a1[i] - a2[i]) > margin) {			
 			return false;
 		}
 	}
@@ -64,8 +65,15 @@ int main() {
 	clock_t start = clock();
 
 	//Allocate gpu memory
-	cudaMalloc(&x_parallel, sizeof(float) * ARRAY_SIZE);
-	cudaMalloc(&y_parallel, sizeof(float) * ARRAY_SIZE);
+	if (cudaMalloc(&x_parallel, sizeof(float) * ARRAY_SIZE) != cudaSuccess) {
+		printf("Error in cudamalloc 1 \n");
+		exit(-1);
+	}
+	if (cudaMalloc(&y_parallel, sizeof(float) * ARRAY_SIZE) != cudaSuccess) {
+		printf("Error in cudamalloc 2 \n");
+		exit(-1);
+	}
+	
 	
 	//Transfer to gpu memory
 	cudaMemcpy(x_parallel, x, sizeof(float) * ARRAY_SIZE, cudaMemcpyHostToDevice);

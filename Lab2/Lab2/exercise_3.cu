@@ -2,7 +2,7 @@
 #include <random>
 #include <time.h>
 
-#define NUM_PARTICLES 1000000000
+#define NUM_PARTICLES 100000
 #define NUM_ITERATIONS 100
 #define BLOCK_SIZE 16  //Number of threads
 
@@ -53,18 +53,19 @@ void particleCPU(Particle* par, int len) {
 }
 
 bool equivalent(Particle* p_cpu, Particle* p_gpu, int len){
+	float margin = 0.00001;
 	for (int i = 0; i < len; i++) {
 		//printf("X: %f %f, Y: %f %f Z: %f %f \n", p_gpu[i].pos.x, p_cpu[i].pos.x, p_gpu[i].pos.y,p_cpu[i].pos.y , p_gpu[i].pos.z, p_cpu[i].pos.z);
 		//Check position
-		if (p_gpu[i].pos.x != p_cpu[i].pos.x ||
-			p_gpu[i].pos.y != p_cpu[i].pos.y ||
-			p_gpu[i].pos.z != p_cpu[i].pos.z) {
+		if (fabs(p_gpu[i].pos.x - p_cpu[i].pos.x) > margin ||
+			fabs(p_gpu[i].pos.y - p_cpu[i].pos.y) > margin ||
+			fabs(p_gpu[i].pos.z - p_cpu[i].pos.z) > margin) {
 			return false;
 		}
 		//Check velocity
-		if (p_gpu[i].velocity.x != p_cpu[i].velocity.x ||
-			p_gpu[i].velocity.y != p_cpu[i].velocity.y ||
-			p_gpu[i].velocity.z != p_cpu[i].velocity.z) {
+		if (fabs(p_gpu[i].velocity.x - p_cpu[i].velocity.x) > margin ||
+			fabs(p_gpu[i].velocity.y - p_cpu[i].velocity.y) > margin ||
+			fabs(p_gpu[i].velocity.z - p_cpu[i].velocity.z) > margin) {
 			return false;
 		}
 	}
@@ -95,7 +96,10 @@ void runSimulation() {
 
 	Particle* particles_parallel;
 	//Allocate gpu memory
-	cudaMalloc(&particles_parallel, sizeof(Particle) * NUM_PARTICLES);
+	if (cudaMalloc(&particles_parallel, sizeof(Particle) * NUM_PARTICLES) != cudaSuccess) {
+		printf("Error in cudamalloc 1 \n");
+		exit(-1);
+	}
 
 	//Transfer to gpu memory
 	cudaMemcpy(particles_parallel, particles, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyHostToDevice);
