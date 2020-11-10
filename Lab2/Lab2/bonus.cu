@@ -37,7 +37,9 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 		{
 			count ++;
 		}
+        
 	}
+    //printf("%d\n", count);
 	atomicAdd(res, count);  
 
 }
@@ -112,15 +114,26 @@ int gpu_solution(bool singlePrec) {
 
     //init random
     curandState* dev_random;
-    cudaMalloc((void**)&dev_random, total_amount_of_threads  * sizeof(curandState));
-	cudaMalloc(&cuda_res, sizeof(int));
+    if (cudaMalloc((void**)&dev_random, total_amount_of_threads * sizeof(curandState)) != cudaSuccess) {
+        printf("Error in cudamalloc 1 \n");
+        exit(-1);
+    }
+
+    if (cudaMalloc(&cuda_res, sizeof(int)) != cudaSuccess) {
+        printf("Error in cudamalloc 2 \n");
+        exit(-1);
+    }
+    
+	
 
     cudaMemset(cuda_res, 0, sizeof(int));
 
     if (singlePrec) {
+        printf("Using single precission\n");
         pi_kernel_single_prec << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res, iterationsPerCudaThread);
     }
     else {
+        printf("Using double precission\n");
         pi_kernel << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res, iterationsPerCudaThread);
     }
     
@@ -128,7 +141,9 @@ int gpu_solution(bool singlePrec) {
 
     cudaMemcpy(res, cuda_res, sizeof(int), cudaMemcpyDeviceToHost);
 
+    printf("%d\n",*res);
     // Estimate Pi and display the result
+
     double pi = ((double)*res / (double)NUM_ITER) * 4.0;
 
     printf("The result is %f\n", pi);
