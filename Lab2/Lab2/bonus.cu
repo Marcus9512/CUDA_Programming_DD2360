@@ -42,6 +42,33 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 
 }
 
+__global__ void pi_kernel_single_prec(curandState* states, int* res, int iterations) {
+    const int id = threadIdx.x + blockIdx.x * blockDim.x;
+    //if (id >= iter) return;
+
+    int seed = id; // different seed per thread
+    curand_init(seed, id, 0, &states[id]);  // 	Initialize CURAND
+
+    int count = 0;
+    for (int i = 0; i < iterations; i++) {
+
+        float x = curand_uniform(&states[id]);
+        float y = curand_uniform(&states[id]);
+
+        //printf("%f %f\n",x,y);
+
+        float z = sqrt((x * x) + (y * y));
+
+        // Check if point is in unit circle
+        if (z <= 1.0)
+        {
+            count++;
+        }
+    }
+    atomicAdd(res, count);
+
+}
+
 void originalCode() {
     int count = 0;
     double x, y, z, pi;
@@ -69,7 +96,7 @@ void originalCode() {
     printf("The result is %f\n", pi);
 }
 
-int gpu_solution() {
+int gpu_solution(bool singlePrec) {
 
     int* res = (int*)malloc(sizeof(int));
 
@@ -90,8 +117,13 @@ int gpu_solution() {
 
     cudaMemset(cuda_res, 0, sizeof(int));
 
+    if (singlePrec) {
+        pi_kernel_single_prec << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res, iterationsPerCudaThread);
+    }
+    else {
+        pi_kernel << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res, iterationsPerCudaThread);
+    }
     
-    pi_kernel << <numberOfBlocks, numberOfThreads >> > (dev_random, cuda_res, iterationsPerCudaThread);
 	cudaDeviceSynchronize();
 
     cudaMemcpy(res, cuda_res, sizeof(int), cudaMemcpyDeviceToHost);
@@ -108,9 +140,8 @@ int gpu_solution() {
 }
 
 int main(int argc, char* argv[])
-{
-   
-    gpu_solution();
+{   
+    gpu_solution(true);
     return 0;
 }
 
