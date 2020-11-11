@@ -14,6 +14,7 @@ __global__ void saxpy_kernal(float *x, float *y, const float a, int length) {
 
 }
 
+// Calculates SAXPY on CPU
 void saxpy_on_cpu(float* x, float* y, const float a, int length) {
 	clock_t start = clock();
 	for (int i = 0; i < length; i++) {
@@ -36,7 +37,8 @@ bool isSame(float* a1, float* a2, int length) {
 }
 
 int main() {
-
+	
+	// Malloc x and y
 	float* x = (float*) malloc(ARRAY_SIZE * sizeof(float));
 	float* y = (float*) malloc(ARRAY_SIZE * sizeof(float));
 	const float a = 2;
@@ -56,12 +58,11 @@ int main() {
 	//To ensure number of blocks is rounded up 
 	dim3 numberOfBlocks((ARRAY_SIZE + THREADS -1) / THREADS);
 	dim3 numberOfThreads(THREADS);	
-
 	
 	float* x_parallel = 0;
 	float* y_parallel = 0;
 
-
+	//Start timer
 	clock_t start = clock();
 
 	//Allocate gpu memory
@@ -72,21 +73,22 @@ int main() {
 	if (cudaMalloc(&y_parallel, sizeof(float) * ARRAY_SIZE) != cudaSuccess) {
 		printf("Error in cudamalloc 2 \n");
 		exit(-1);
-	}
-	
+	}	
 	
 	//Transfer to gpu memory
 	cudaMemcpy(x_parallel, x, sizeof(float) * ARRAY_SIZE, cudaMemcpyHostToDevice);
 	cudaMemcpy(y_parallel, y, sizeof(float) * ARRAY_SIZE, cudaMemcpyHostToDevice);
 
+	//Start kernel and calculate SAXPY
 	saxpy_kernal <<<numberOfBlocks, numberOfThreads >>> (x_parallel, y_parallel, a, ARRAY_SIZE);
 	cudaDeviceSynchronize();
 	cudaMemcpy(parallel_results, y_parallel, sizeof(float) * ARRAY_SIZE, cudaMemcpyDeviceToHost);
 
+	//Stop timer
 	double time = (double)(clock() - start) / CLOCKS_PER_SEC;
 	printf("Computing SAXPY on the GPU Done in %f seconds\n",time);
 
-	//Store the cpu result in y
+	//Calculate SAXPY on cpu and store result in y
 	saxpy_on_cpu(x, y, a, ARRAY_SIZE);
 
 	//Check if the results from the gpu and cpu are the same
@@ -99,6 +101,7 @@ int main() {
 		printf("Comparing the output for each implementation, Wrong \n");
 	}
 
+	//Free memory
 	cudaFree(x_parallel);
 	cudaFree(y_parallel);
 	free(x);

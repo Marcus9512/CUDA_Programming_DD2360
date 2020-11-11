@@ -15,9 +15,9 @@
 #define NUM_THREADS 256
 #define NUM_BLOCKS 1
 
+//Double precision kernel implementation
 __global__ void pi_kernel(curandState* states, int *res, int iterations) {
     const int id = threadIdx.x + blockIdx.x * blockDim.x;
-    //if (id >= iter) return;
 
     int seed = id; // different seed per thread
     curand_init(seed, id, 0, &states[id]);  // 	Initialize CURAND
@@ -44,6 +44,7 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 
 }
 
+//Single precision kernel implementation
 __global__ void pi_kernel_single_prec(curandState* states, int* res, int iterations) {
     const int id = threadIdx.x + blockIdx.x * blockDim.x;
     //if (id >= iter) return;
@@ -71,6 +72,7 @@ __global__ void pi_kernel_single_prec(curandState* states, int* res, int iterati
 
 }
 
+// The original CPU code, it is not used, only here for comparision 
 void originalCode() {
     int count = 0;
     double x, y, z, pi;
@@ -98,19 +100,20 @@ void originalCode() {
     printf("The result is %f\n", pi);
 }
 
+
 int gpu_solution(bool singlePrec) {
 
     int* res = (int*)malloc(sizeof(int));
-
 	
 	dim3 numberOfBlocks(NUM_BLOCKS);
-    dim3 numberOfThreads(NUM_THREADS);
+	dim3 numberOfThreads(NUM_THREADS);
 
+	// calculate total number of threads
 	float total_amount_of_threads = NUM_BLOCKS * NUM_THREADS;
-
-    int iterationsPerCudaThread = NUM_ITER / total_amount_of_threads;
+	
+	// calculate how many iterations each thread should do
+	int iterationsPerCudaThread = NUM_ITER / total_amount_of_threads;
     int* cuda_res;
-
 
     //init random
     curandState* dev_random;
@@ -122,10 +125,9 @@ int gpu_solution(bool singlePrec) {
     if (cudaMalloc(&cuda_res, sizeof(int)) != cudaSuccess) {
         printf("Error in cudamalloc 2 \n");
         exit(-1);
-    }
-    
-	
+    }	
 
+	// set cuda_res to 0
     cudaMemset(cuda_res, 0, sizeof(int));
 
     if (singlePrec) {
@@ -138,16 +140,14 @@ int gpu_solution(bool singlePrec) {
     }
     
 	cudaDeviceSynchronize();
-
     cudaMemcpy(res, cuda_res, sizeof(int), cudaMemcpyDeviceToHost);
 
-    printf("%d\n",*res);
     // Estimate Pi and display the result
-
     double pi = ((double)*res / (double)NUM_ITER) * 4.0;
 
     printf("The result is %f\n", pi);
 
+	// Free memory
     cudaFree(cuda_res);
 	cudaFree(dev_random);
     free(res);

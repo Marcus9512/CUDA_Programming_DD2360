@@ -11,6 +11,7 @@
 
 #define VELOCITY_DEC 0.0001
 
+// A particle
 typedef struct {
 	float3 pos;
 	float3 velocity;
@@ -41,6 +42,7 @@ __global__ void particleSim(Particle* par, int len, int iterations) {
 	}	
 }
 
+// Calculate simulation on CPU
 void particleCPU(Particle* par, int len) {
 	for (int i = 0; i < len; i++) {
 		//update velocity
@@ -54,6 +56,7 @@ void particleCPU(Particle* par, int len) {
 	}
 }
 
+// Evaluate if the cpu and gpu solution are the same
 bool equivalent(Particle* p_cpu, Particle* p_gpu, int len){
 	float margin = 0.00001;
 	for (int i = 0; i < len; i++) {
@@ -73,6 +76,7 @@ bool equivalent(Particle* p_cpu, Particle* p_gpu, int len){
 	}
 	return true;
 }
+
 void runSimulation() {
 
 	//To ensure number of blocks is rounded up 
@@ -113,7 +117,7 @@ void runSimulation() {
 	cudaMemcpy(parallel_results, particles_parallel, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyDeviceToHost);
 
 
-	//CPU
+	//Run simulation on CPU
 	clock_t start = clock();
 	for (int i = 0; i < NUM_ITERATIONS; i++) {
 		//printf("%d\n",i);
@@ -125,6 +129,7 @@ void runSimulation() {
 
 	bool res = equivalent(particles, parallel_results, NUM_PARTICLES);
 	
+	// Free memory
 	cudaFree(particles_parallel);
 	free(particles);
 	free(parallel_results);
