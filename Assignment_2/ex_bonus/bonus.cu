@@ -29,7 +29,6 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 		double y = curand_uniform(&states[id]);
 
 		//printf("%f %f\n",x,y);
-
 		double z = sqrt((x * x) + (y * y));
 
 		// Check if point is in unit circle
@@ -39,15 +38,12 @@ __global__ void pi_kernel(curandState* states, int *res, int iterations) {
 		}
         
 	}
-    //printf("%d\n", count);
 	atomicAdd(res, count);  
-
 }
 
 //Single precision kernel implementation
 __global__ void pi_kernel_single_prec(curandState* states, int* res, int iterations) {
     const int id = threadIdx.x + blockIdx.x * blockDim.x;
-    //if (id >= iter) return;
 
     int seed = id; // different seed per thread
     curand_init(seed, id, 0, &states[id]);  // 	Initialize CURAND
@@ -58,7 +54,6 @@ __global__ void pi_kernel_single_prec(curandState* states, int* res, int iterati
         float x = curand_uniform(&states[id]);
         float y = curand_uniform(&states[id]);
 
-        //printf("%f %f\n",x,y);
 
         float z = sqrt((x * x) + (y * y));
 
@@ -69,7 +64,6 @@ __global__ void pi_kernel_single_prec(curandState* states, int* res, int iterati
         }
     }
     atomicAdd(res, count);
-
 }
 
 // The original CPU code, it is not used, only here for comparision 
