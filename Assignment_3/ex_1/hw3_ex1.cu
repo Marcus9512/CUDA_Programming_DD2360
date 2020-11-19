@@ -386,7 +386,7 @@ __global__ void gpu_gaussian(int width, int height, float *image, float *image_o
     __syncthreads();
 	
 	//make sure that position is defined for gpu_applyFilter
-    if (idx >= (width - 2) && idy >= (height - 2)) return;
+    if (index_x >= (width - 2) && index_y >= (height - 2)) return;
 
 	image_out[offset] = gpu_applyFilter(&sh_block[shared_pos],
             BLOCK_SIZE_SH, gaussian, 3);   
@@ -452,21 +452,21 @@ __global__ void gpu_sobel(int width, int height, float *image, float *image_out)
 	sh_block[shared_pos] = image[offset_t];
 
     //Make sure to copy data to position [14][14], [14][15], [15][14] and [15][15] in sh_block
-    if(index_x < (width - 2) && index_y < (height - 2)){
+    if(idx < (width - 2) && idy < (height - 2)){
         if (threadIdx.y >= (BLOCK_SIZE - 2) && (threadIdx.x >= (BLOCK_SIZE - 2))) {
             sh_block[shared_pos+2 + BLOCK_SIZE_SH * 2] = image[offset_t + width * 2 + 2];
         }
     }
 
 	//Make sure to copy data to the colums [x][14] and [x][15] where 0<=x<=15
-    if(index_y < (height - 2)){
+    if(idy < (height - 2)){
         if (threadIdx.y >= (BLOCK_SIZE - 2)) {
             sh_block[shared_pos+ BLOCK_SIZE_SH * 2] = image[offset_t + width * 2];
         }
     }
 
 	//Make sure to copy data to the colums [14][y] and [15][y] where 0<=y<=15
-    if(index_x < (width - 2)){
+    if(idx < (width - 2)){
         if (threadIdx.x >= (BLOCK_SIZE - 2)) {
             sh_block[shared_pos+2] = image[offset_t + 2];
         }
