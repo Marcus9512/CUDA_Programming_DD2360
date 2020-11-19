@@ -354,39 +354,51 @@ __global__ void gpu_gaussian(int width, int height, float *image, float *image_o
     int index_x = blockIdx.x * blockDim.x + threadIdx.x;
     int index_y = blockIdx.y * blockDim.y + threadIdx.y;
 
+	//From original implementation
     int offset_t = index_y * width + index_x;
     int offset   = (index_y + 1) * width + (index_x + 1);
 
     //From tutorial in shared memory
     int shared_pos = threadIdx.y * BLOCK_SIZE_SH + threadIdx.x;
 
+	bool less_then_width = index_x < (width - 2)
+	bool less_then_height = index_y < (height - 2)
+
     sh_block[shared_pos] = image[offset_t];
 
 	//Make sure to copy data to position [14][14], [14][15], [15][14] and [15][15] in sh_block
-    if(index_x < (width - 2) && index_y < (height - 2)){
+    if(less_then_width && less_then_height){
         if (threadIdx.y >= (BLOCK_SIZE - 2) && (threadIdx.x >= (BLOCK_SIZE - 2))) {
-            sh_block[shared_pos+2 + BLOCK_SIZE_SH * 2] = image[offset_t + width * 2 + 2];
+			//calculates adjustments
+			int adjustment_sh = 2 + BLOCK_SIZE_SH * 2;
+			int adjustment_im = width * 2 + 2;
+            sh_block[shared_pos + adjustment_sh] = image[offset_t + adjustment_im];
         }
     }
 
 	//Make sure to copy data to the colums [x][14] and [x][15] where 0<=x<=15
-    if(index_y < (height - 2)){
+    if(less_then_height){
         if (threadIdx.y >= (BLOCK_SIZE - 2)) {
-            sh_block[shared_pos+ BLOCK_SIZE_SH * 2] = image[offset_t + width * 2];
+			//calculates adjustments
+			int adjustment_sh = BLOCK_SIZE_SH * 2;
+			int adjustment_im = width * 2;
+            sh_block[shared_pos+ adjustment_sh] = image[offset_t + adjustment_im];
         }
     }
 
 	//Make sure to copy data to the colums [14][y] and [15][y] where 0<=y<=15
-    if(index_x < (width - 2)){
+    if(less_then_width){
         if (threadIdx.x >= (BLOCK_SIZE - 2)) {
-            sh_block[shared_pos+2] = image[offset_t + 2];
+			//calculates adjustments
+			int adjustment_sh_im = 2;
+            sh_block[shared_pos + adjustment_sh_im] = image[offset_t + adjustment_sh_im];
         }
     }
 
     __syncthreads();
 	
 	//make sure that position is defined for gpu_applyFilter
-    if (index_x >= (width - 2) && index_y >= (height - 2)) return;
+    if (less_then_width && less_then_height) return;
 
 	image_out[offset] = gpu_applyFilter(&sh_block[shared_pos],
             BLOCK_SIZE_SH, gaussian, 3);   
@@ -443,39 +455,51 @@ __global__ void gpu_sobel(int width, int height, float *image, float *image_out)
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int idy = blockIdx.y * blockDim.y + threadIdx.y;
    
+    //From original implementation
     int offset_t = idy * width + idx;
     int offset = (idy + 1) * width + (idx+1);
 
     //From tutorial in shared memory
     int shared_pos = threadIdx.y * BLOCK_SIZE_SH + threadIdx.x;
 
+	bool less_then_width = idx < (width - 2)
+	bool less_then_height = idy < (height - 2)
+
 	sh_block[shared_pos] = image[offset_t];
 
     //Make sure to copy data to position [14][14], [14][15], [15][14] and [15][15] in sh_block
-    if(idx < (width - 2) && idy < (height - 2)){
+    if(less_then_width && less_then_height){
         if (threadIdx.y >= (BLOCK_SIZE - 2) && (threadIdx.x >= (BLOCK_SIZE - 2))) {
-            sh_block[shared_pos+2 + BLOCK_SIZE_SH * 2] = image[offset_t + width * 2 + 2];
+			//calculates adjustments
+			int adjustment_sh = 2 + BLOCK_SIZE_SH * 2;
+			int adjustment_im = width * 2 + 2;
+            sh_block[shared_pos + adjustment_sh] = image[offset_t + adjustment_im];
         }
     }
 
 	//Make sure to copy data to the colums [x][14] and [x][15] where 0<=x<=15
-    if(idy < (height - 2)){
+    if(less_then_height){
         if (threadIdx.y >= (BLOCK_SIZE - 2)) {
-            sh_block[shared_pos+ BLOCK_SIZE_SH * 2] = image[offset_t + width * 2];
+            //calculates adjustments
+			int adjustment_sh = BLOCK_SIZE_SH * 2;
+			int adjustment_im = width * 2;
+            sh_block[shared_pos+ adjustment_sh] = image[offset_t + adjustment_im];
         }
     }
 
 	//Make sure to copy data to the colums [14][y] and [15][y] where 0<=y<=15
-    if(idx < (width - 2)){
+    if(less_then_width){
         if (threadIdx.x >= (BLOCK_SIZE - 2)) {
-            sh_block[shared_pos+2] = image[offset_t + 2];
+            //calculates adjustments
+			int adjustment_sh_im = 2;
+            sh_block[shared_pos + adjustment_sh_im] = image[offset_t + adjustment_sh_im];
         }
     }
 
     __syncthreads();
 
 	//make sure that position is defined for gpu_applyFilter
-    if (idx >= (width - 2) && idy >= (height - 2)) return;
+    if (less_then_width && less_then_height) return;
 
     float gx = gpu_applyFilter(&sh_block[shared_pos], BLOCK_SIZE_SH, sobel_x, 3);
     float gy = gpu_applyFilter(&sh_block[shared_pos], BLOCK_SIZE_SH, sobel_y, 3);
