@@ -361,8 +361,8 @@ __global__ void gpu_gaussian(int width, int height, float *image, float *image_o
     //From tutorial in shared memory
     int shared_pos = threadIdx.y * BLOCK_SIZE_SH + threadIdx.x;
 
-	bool less_then_width = index_x < (width - 2)
-	bool less_then_height = index_y < (height - 2)
+	bool less_then_width = index_x < (width - 2);
+	bool less_then_height = index_y < (height - 2);
 
     sh_block[shared_pos] = image[offset_t];
 
@@ -398,7 +398,7 @@ __global__ void gpu_gaussian(int width, int height, float *image, float *image_o
     __syncthreads();
 	
 	//make sure that position is defined for gpu_applyFilter
-    if (less_then_width && less_then_height) return;
+    if (!less_then_width && !less_then_height) return;
 
 	image_out[offset] = gpu_applyFilter(&sh_block[shared_pos],
             BLOCK_SIZE_SH, gaussian, 3);   
@@ -499,7 +499,7 @@ __global__ void gpu_sobel(int width, int height, float *image, float *image_out)
     __syncthreads();
 
 	//make sure that position is defined for gpu_applyFilter
-    if (less_then_width && less_then_height) return;
+    if (!less_then_width && !less_then_height) return;
 
     float gx = gpu_applyFilter(&sh_block[shared_pos], BLOCK_SIZE_SH, sobel_x, 3);
     float gy = gpu_applyFilter(&sh_block[shared_pos], BLOCK_SIZE_SH, sobel_y, 3);
