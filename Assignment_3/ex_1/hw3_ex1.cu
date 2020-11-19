@@ -350,36 +350,39 @@ __global__ void gpu_gaussian(int width, int height, float *image, float *image_o
                           2.0f / 16.0f, 4.0f / 16.0f, 2.0f / 16.0f,
                           1.0f / 16.0f, 2.0f / 16.0f, 1.0f / 16.0f };
     
+    // Gives id x and y for the entire image
     int index_x = blockIdx.x * blockDim.x + threadIdx.x;
     int index_y = blockIdx.y * blockDim.y + threadIdx.y;
-    
+
+    int offset_t = index_y * width + index_x;
+    int offset   = (index_y + 1) * width + (index_x + 1);
+
+    //From tutorial in shared memory
+    int shared_pos = threadIdx.y * BLOCK_SIZE_SH + threadIdx.x;
+
+    sh_block[shared_pos] = image[offset_t];
+
+    if(index_x < (width - 2) && index_y < (height - 2)){
+        if (threadIdx.y >= (BLOCK_SIZE - 2) && (threadIdx.x >= (BLOCK_SIZE - 2))) {
+            sh_block[shared_pos+2 + BLOCK_SIZE_SH * 2] = image[offset_t + width * 2 + 2];
+        }
+    }
+
+    if(index_y < (height - 2)){
+        if (threadIdx.y >= (BLOCK_SIZE - 2)) {
+            sh_block[shared_pos+ BLOCK_SIZE_SH * 2] = image[offset_t + width * 2];
+        }
+    }
+    if(index_x < (width - 2)){
+        if (threadIdx.x >= (BLOCK_SIZE - 2)) {
+            sh_block[shared_pos+2] = image[offset_t + 2];
+        }
+    }
+    __syncthreads();
     if (index_x < (width - 2) && index_y < (height - 2))
     {
-        int offset_t = index_y * width + index_x;
-        int offset   = (index_y + 1) * width + (index_x + 1);
-
-        //From tutorial in shared memory
-        int shared_pos = threadIdx.y * BLOCK_SIZE_SH + threadIdx.x;
-        //printf("%d\n", shared_pos);
-        
-        sh_block[shared_pos] = image[offset_t];
-        __syncthreads();
-        
-        if (threadIdx.y > (BLOCK_SIZE_SH - 2) && threadIdx.x > (BLOCK_SIZE_SH - 2)) {
-            sh_block[shared_pos] = image_out[offset_t + width * 2 + 2];
-        }else if (threadIdx.y > (BLOCK_SIZE_SH - 2)) {
-            sh_block[shared_pos] = image_out[offset_t + width * 2];
-        }
-        else if (threadIdx.x > (BLOCK_SIZE_SH - 2)) {
-            sh_block[shared_pos] = image_out[offset_t + 2];
-        }
-
-        __syncthreads();
-
         image_out[offset] = gpu_applyFilter(&sh_block[shared_pos],
-            BLOCK_SIZE_SH, gaussian, 3);
-
-       
+            BLOCK_SIZE_SH, gaussian, 3);       
     }
 }
 
