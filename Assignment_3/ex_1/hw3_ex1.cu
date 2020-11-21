@@ -248,7 +248,9 @@ __global__ void gpu_grayscale(int width, int height, float *image, float *image_
     ///////////////////////////////////////////////////////////
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
     int idy = threadIdx.y + blockIdx.y * blockDim.y;
-    if (idx > width || idy > height) return;
+
+    //Without this, it crashes at the Rome picture
+    if (idx >= width || idy >= height) return;
 
     // Same code as the inner loop from cpu_grayscale
     int offset_out = idy * width;      // 1 color per pixel
@@ -325,7 +327,6 @@ void cpu_gaussian(int width, int height, float *image, float *image_out)
     float gaussian[9] = { 1.0f / 16.0f, 2.0f / 16.0f, 1.0f / 16.0f,
                           2.0f / 16.0f, 4.0f / 16.0f, 2.0f / 16.0f,
                           1.0f / 16.0f, 2.0f / 16.0f, 1.0f / 16.0f };
-    
     for (int h = 0; h < (height - 2); h++)
     {
         int offset_t = h * width;
@@ -353,6 +354,9 @@ __global__ void gpu_gaussian(int width, int height, float *image, float *image_o
     // Gives id x and y for the entire image
     int index_x = blockIdx.x * blockDim.x + threadIdx.x;
     int index_y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    //Without this, it crashes at the Rome picture
+    if (index_x >= width || index_y >= height) return;
 
 	//From original implementation
     int offset_t = index_y * width + index_x;
@@ -398,8 +402,8 @@ __global__ void gpu_gaussian(int width, int height, float *image, float *image_o
     __syncthreads();
 	
 	//make sure that position is defined for gpu_applyFilter
-    if (!less_then_width && !less_then_height) return;
-
+    if (!less_then_width || !less_then_height) return;
+    //printf("x: %d y: %d\n", index_x, index_y);
 	image_out[offset] = gpu_applyFilter(&sh_block[shared_pos],
             BLOCK_SIZE_SH, gaussian, 3);   
 }
@@ -442,7 +446,6 @@ __global__ void gpu_sobel(int width, int height, float *image, float *image_out)
     // TO-DO #6.1 /////////////////////////////////////
     // Implement the GPU version of the Sobel filter //
     ///////////////////////////////////////////////////
-
     __shared__ float sh_block[BLOCK_SIZE_SH * BLOCK_SIZE_SH];
 
     float sobel_x[9] = { 1.0f,  0.0f, -1.0f,
@@ -454,6 +457,9 @@ __global__ void gpu_sobel(int width, int height, float *image, float *image_out)
 
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int idy = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    //Without this, it crashes at the Rome picture
+    if (idx >= width || idy >= height) return;
    
     //From original implementation
     int offset_t = idy * width + idx;
@@ -498,8 +504,8 @@ __global__ void gpu_sobel(int width, int height, float *image, float *image_out)
 
     __syncthreads();
 
-	//make sure that position is defined for gpu_applyFilter
-    if (!less_then_width && !less_then_height) return;
+	//make sure that position is defined for gpu_applyFilter    
+    if (!less_then_width || !less_then_height) return;
 
     float gx = gpu_applyFilter(&sh_block[shared_pos], BLOCK_SIZE_SH, sobel_x, 3);
     float gy = gpu_applyFilter(&sh_block[shared_pos], BLOCK_SIZE_SH, sobel_y, 3);
@@ -541,12 +547,19 @@ int main(int argc, char **argv)
     for (int i = 0; i < 2; i++)
     {
         image_out[i] = (float *)calloc(image_size, sizeof(float));
+        if(!image_out[i]) printf("!!!!!!!!");
         
-        cudaMalloc(&d_image_out[i], image_size * sizeof(float));
+        if(cudaMalloc(&d_image_out[i], image_size * sizeof(float)) != cudaSuccess){
+            printf("Error in cudamalloc\n");
+            exit(-1);
+        }
         cudaMemset(d_image_out[i], 0, image_size * sizeof(float));
     }
-
-    cudaMalloc(&d_bitmap, image_size * sizeof(float) * 3);
+    
+    if(cudaMalloc(&d_bitmap, image_size * sizeof(float) * 3) != cudaSuccess){
+        printf("Error in cudamalloc\n");
+        exit(-1);
+    }
     cudaMemcpy(d_bitmap, bitmap.data,
                image_size * sizeof(float) * 3, cudaMemcpyHostToDevice);
     
