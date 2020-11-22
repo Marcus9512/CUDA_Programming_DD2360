@@ -2,9 +2,9 @@
 #include <random>
 #include <time.h>
 
-#define NUM_PARTICLES 10000
+#define NUM_PARTICLES 100000000
 #define NUM_ITERATIONS 100
-#define BLOCK_SIZE 256  //Number of threads
+#define BLOCK_SIZE 64  //Number of threads
 
 #define RANDOM_C 1000
 #define RANDOM_V 10
@@ -83,7 +83,11 @@ void runSimulation() {
 	dim3 numberOfBlocks((NUM_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE);
 	dim3 numberOfThreads(BLOCK_SIZE);
 
-	Particle* particles = (Particle*)malloc(NUM_PARTICLES * sizeof(Particle));
+	Particle* particles;
+	Particle* particles_parallel;
+
+	cudaMallocManaged(&particles, NUM_PARTICLES * sizeof(Particle));
+	cudaMallocManaged(&particles_parallel, NUM_PARTICLES * sizeof(Particle));
 
 	//Fill random values particles
 	srand((unsigned int)time(NULL));
@@ -95,27 +99,20 @@ void runSimulation() {
 		particles[i].velocity.x = ((float)rand() / (float)RAND_MAX) * RANDOM_V;
 		particles[i].velocity.y = ((float)rand() / (float)RAND_MAX) * RANDOM_V;
 		particles[i].velocity.z = ((float)rand() / (float)RAND_MAX) * RANDOM_V;
-	}
 
-	//Store the result from gpu here
-	Particle* parallel_results = (Particle*)malloc(NUM_PARTICLES * sizeof(Particle));
+		particles_parallel[i].pos.x = particles[i].pos.x;
+		particles_parallel[i].pos.y = particles[i].pos.y;
+		particles_parallel[i].pos.z = particles[i].pos.z;
 
-	Particle* particles_parallel;
-	//Allocate gpu memory
-	if (cudaMalloc(&particles_parallel, sizeof(Particle) * NUM_PARTICLES) != cudaSuccess) {
-		printf("Error in cudamalloc 1 \n");
-		exit(-1);
-	}
+		particles_parallel[i].velocity.x = particles[i].velocity.x;
+		particles_parallel[i].velocity.y = particles[i].velocity.y;
+		particles_parallel[i].velocity.z = particles[i].velocity.z;
 
-	//Transfer to gpu memory
-	cudaMemcpy(particles_parallel, particles, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyHostToDevice);
+	}	
 
 	
 	particleSim << <numberOfBlocks, numberOfThreads >> > (particles_parallel, NUM_PARTICLES, NUM_ITERATIONS);
 	cudaDeviceSynchronize();
-	
-	cudaMemcpy(parallel_results, particles_parallel, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyDeviceToHost);
-
 
 	//Run simulation on CPU
 	clock_t start = clock();
@@ -127,12 +124,11 @@ void runSimulation() {
 
 	printf("CPU done in %f seconds!\n", time);
 
-	bool res = equivalent(particles, parallel_results, NUM_PARTICLES);
+	bool res = equivalent(particles, particles_parallel, NUM_PARTICLES);
 	
 	// Free memory
 	cudaFree(particles_parallel);
-	free(particles);
-	free(parallel_results);
+	cudaFree(particles);
 
 	if (res) {
 		printf("Comparing the output for each implementation, Correct!\n");
