@@ -154,7 +154,6 @@ void runSimulation() {
 	cudaFree(particles_parallel);
 	free(particles);
 	cudaFreeHost(parallel_results);
-	//free(parallel_results);
 
 	if (res) {
 		printf("Comparing the output for each implementation, Correct!\n");
