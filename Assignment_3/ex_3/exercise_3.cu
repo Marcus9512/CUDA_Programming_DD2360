@@ -2,7 +2,7 @@
 #include <random>
 #include <time.h>
 
-#define NUM_PARTICLES 100000000
+#define NUM_PARTICLES 10000000
 #define NUM_ITERATIONS 100
 #define BLOCK_SIZE 64  //Number of threads
 
@@ -34,9 +34,10 @@ __device__ void updatePos(Particle* par, int index) {
 }
 
 //Kernal function
-__global__ void particleSim(Particle* par, int len) {
-	const int id = threadIdx.x + blockIdx.x * blockDim.x;
-	if (id >= len) return;
+__global__ void particleSim(Particle* par, int len, int offset) {
+	const int id = threadIdx.x + blockIdx.x * blockDim.x + offset;
+	//printf("Thread id %d\n",localId);
+	if (id >= len || id >=BATCH_SIZE+offset) return;
 
 	
 	updateVelocity(par, id);
@@ -69,12 +70,14 @@ bool equivalent(Particle* p_cpu, Particle* p_gpu, int len){
 		if (fabs(p_gpu[i].pos.x - p_cpu[i].pos.x) > margin ||
 			fabs(p_gpu[i].pos.y - p_cpu[i].pos.y) > margin ||
 			fabs(p_gpu[i].pos.z - p_cpu[i].pos.z) > margin) {
+			printf("Failed pos on %d of %d\n", i, len);
 			return false;
 		}
 		//Check velocity
 		if (fabs(p_gpu[i].velocity.x - p_cpu[i].velocity.x) > margin ||
 			fabs(p_gpu[i].velocity.y - p_cpu[i].velocity.y) > margin ||
 			fabs(p_gpu[i].velocity.z - p_cpu[i].velocity.z) > margin) {
+			printf("Failed vel on %d of %d\n", i, len);
 			return false;
 		}
 	}
@@ -83,10 +86,16 @@ bool equivalent(Particle* p_cpu, Particle* p_gpu, int len){
 
 void runSimulation() {
 
-	
+	//Stream parameters, taken from canvas example
+	const int nStreams = NUM_PARTICLES / BATCH_SIZE;
+	const int streamBytes = BATCH_SIZE * sizeof(Particle);
+	cudaStream_t streams[nStreams];
+	for (int i = 0; i < nStreams; i++) {
+		cudaStreamCreate(&streams[i]);
+	}
 
 	//To ensure number of blocks is rounded up 
-	dim3 numberOfBlocks((NUM_PARTICLES + BLOCK_SIZE - 1) / BLOCK_SIZE);
+	dim3 numberOfBlocks((BATCH_SIZE + BLOCK_SIZE -1)/ BLOCK_SIZE);
 	dim3 numberOfThreads(BLOCK_SIZE);
 
 	Particle* particles = (Particle*)malloc(NUM_PARTICLES * sizeof(Particle));
@@ -97,15 +106,6 @@ void runSimulation() {
 	if (cudaHostAlloc(&parallel_results, sizeof(Particle) * NUM_PARTICLES, cudaHostAllocDefault) != cudaSuccess) {
 		printf("Error in cudaHostAlloc\n");
 		exit(-1);
-	}
-
-	//Stream parameters, taken from canvas example
-	const int nStreams = NUM_PARTICLES / BATCH_SIZE;
-	const int streamBytes = BATCH_SIZE * sizeof(Particle);
-
-	cudaStream_t streams[nStreams];
-	for (int i = 0; i < nStreams; i++) {
-		cudaStreamCreate(&stream[i]);
 	}
 
 	//Fill random values particles
@@ -139,20 +139,19 @@ void runSimulation() {
 
 	//Transfer to gpu memory
 	for (int i = 0; i < NUM_ITERATIONS; i++) {
-		int offset = i * BATCH_SIZE;
-		//cudaMemcpy(particles_parallel, parallel_results, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyHostToDevice);
+		for(int j = 0; j < nStreams; j++ ){
+			int offset = j * BATCH_SIZE;
 
-		cudaMemcpyAsync(&particles_parallel[offset], &parallel_results[offset], streamBytes, cudaMemcpyHostToDevice, stream[i]);
+			cudaMemcpyAsync(&particles_parallel[offset], &parallel_results[offset], streamBytes, cudaMemcpyHostToDevice, streams[j]);
 
-		particleSim << <numberOfBlocks, numberOfThreads >> > (particles_parallel, NUM_PARTICLES);
+			particleSim << <numberOfBlocks, numberOfThreads, 0, streams[j]>> > (particles_parallel, NUM_PARTICLES, offset);
 
-		cudaMemcpyAsync(&parallel_results[offset], &particles_parallel[offset], streamBytes, cudaMemcpyHostToDevice, stream[i]);
-
-		//cudaMemcpy(parallel_results, particles_parallel, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyDeviceToHost);	
+			cudaMemcpyAsync(&parallel_results[offset], &particles_parallel[offset], streamBytes, cudaMemcpyHostToDevice, streams[j]);
+		}
+		cudaDeviceSynchronize();
+			
 	}
-	for (int i = 0; i < nStreams; i++) {
-		cudaStreamSynchronize(&stream[i]);
-	}
+	
 
 	//Run simulation on CPU
 	clock_t start = clock();
@@ -167,7 +166,7 @@ void runSimulation() {
 	bool res = equivalent(particles, parallel_results, NUM_PARTICLES);
 
 	for (int i = 0; i < nStreams; i++) {
-		cudaStreamDestroy(&stream[i]);
+		cudaStreamDestroy(streams[i]);
 	}
 	
 	// Free memory
