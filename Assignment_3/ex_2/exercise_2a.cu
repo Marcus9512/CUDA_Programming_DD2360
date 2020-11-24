@@ -26,7 +26,6 @@ __device__ void updateVelocity(Particle* par, int index) {
 
 //Update the position of a particle given an particle array and an index
 __device__ void updatePos(Particle* par, int index) {
-	//par[index].pos = par[index].pos + par[index].velocity;
 	par[index].pos = make_float3(par[index].pos.x + par[index].velocity.x,
 		par[index].pos.y + par[index].velocity.y, par[index].pos.z + par[index].velocity.z);
 }
@@ -90,6 +89,7 @@ void runSimulation() {
 	//Store the result from gpu here
 	Particle* parallel_results; // = (Particle*)malloc(NUM_PARTICLES * sizeof(Particle));
 
+	//Pin host memory
 	if (cudaHostAlloc(&parallel_results, sizeof(Particle) * NUM_PARTICLES, cudaHostAllocDefault) != cudaSuccess) {
 		printf("Error in cudaHostAlloc\n");
 		exit(-1);
@@ -114,7 +114,6 @@ void runSimulation() {
 		parallel_results[i].velocity.y = particles[i].velocity.y;
 		parallel_results[i].velocity.z = particles[i].velocity.z;
 	}
-
 	
 
 	Particle* particles_parallel;
@@ -135,7 +134,6 @@ void runSimulation() {
 
 		cudaMemcpy(parallel_results, particles_parallel, sizeof(Particle) * NUM_PARTICLES, cudaMemcpyDeviceToHost);	
 	}
-	
 
 
 	//Run simulation on CPU
