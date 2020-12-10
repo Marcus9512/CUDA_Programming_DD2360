@@ -6,3 +6,6 @@ This is a repository containing my solutions to the lab assignments for DD2360
 * Nvprof: `nvprof ./out`
 * Mem-check: `nvcc -lineinfo -Xcompiler -rdynamic -o out file.cu` `cuda-memcheck ./out`
 * Nvvp: `nvprof --output-profile profile_mycode.nvprof ./out`
+
+# OpenCL
+* nvcc -O1 exercise_1.c -lOpenCL -o e1
