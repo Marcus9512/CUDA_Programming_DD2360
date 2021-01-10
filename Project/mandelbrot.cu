@@ -181,7 +181,7 @@ __global__ void naiveKernel(int *results, int width, int height){
 		y = 2.0f*x*y + cy;
 		x = temp;
 	}	
-	//if(results[idx + idy * width] != 0) printf("!!!!\n");
+
 	results[idx + idy * width] = currentDwel;
 	
 }
@@ -224,13 +224,17 @@ void naiveKernelImplementation(int *results, int width, int height, int blockSiz
 }
 
 bool isEqual(int* a, int* b, int length) {
+	bool res = true;
+	int numWrong = 0;
 	for (int i = 0; i < length; i++) {
 		if (abs(a[i] - b[i]) > 10) {
 			printf("Not equal, %d %d i= %d\n", a[i],b[i], i);
-			return false;
+			numWrong++;
+			res = false;
 		}
 	}
-	return true;
+	printf("Number of unequal dwells: %f %%\n", ((double) numWrong/length));
+	return res;
 }
 
 void test() {
@@ -283,8 +287,8 @@ void generateImage() {
 	bool checkEqual = false;
 	bool useCPU = false;
 
-	int width  =  16384;
-	int height =  16384;
+	int width  =  1024;
+	int height =  1024;
 
 	int* resultsCpu = (int*)malloc(width * height * sizeof(int));
 	int* resultsNaive = (int*)malloc(width * height * sizeof(int));
